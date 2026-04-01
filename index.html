@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hopfield Network - Before and After Learning</title>
+    <style>
+        :root {
+            --bg: #0b1220;
+            --card-bg: #141d2b;
+            --border: #2d3a4f;
+            --ink: #e5e7eb;
+            --teal: #11a8a0;
+            --magenta: #f472b6;
+            --purple: #a78bfa;
+            --green: #22c55e;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --calc-bg: #0c1526;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            padding: 20px;
+            font-size: 1rem;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: var(--teal);
+            font-size: 1.8rem;
+            font-weight: 400;
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--ink);
+            opacity: 0.7;
+            font-size: 1rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .phase {
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .phase.learning {
+            border-color: var(--purple);
+        }
+
+        .phase.running {
+            border-color: var(--green);
+        }
+
+        .phase.calculations {
+            border-color: var(--orange);
+        }
+
+        .phase-title {
+            text-align: center;
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            font-weight: 400;
+        }
+
+        .phase.learning .phase-title {
+            color: var(--purple);
+        }
+
+        .phase.running .phase-title {
+            color: var(--green);
+        }
+
+        .phase.calculations .phase-title {
+            color: var(--orange);
+        }
+
+        .phase-description {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Diagram SVG */
+        .diagram-container {
+            margin-bottom: 15px;
+        }
+
+        .diagram-svg {
+            width: 100%;
+            height: 180px;
+        }
+
+        .neuron-label {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            font-size: 18px;
+            fill: var(--ink);
+        }
+
+        .weight-label {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            font-size: 16px;
+            fill: var(--orange);
+        }
+
+        .edge {
+            stroke: var(--purple);
+            stroke-width: 3;
+            fill: none;
+        }
+
+        .value-display-svg {
+            font-family: monospace;
+            font-size: 14px;
+            fill: var(--orange);
+        }
+
+        /* Sliders - moved to bottom */
+        .sliders-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .sliders-title {
+            text-align: center;
+            margin-bottom: 8px;
+            color: var(--ink);
+            font-weight: 400;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .slider-row label {
+            min-width: 35px;
+            text-align: left;
+            direction: ltr;
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            color: var(--ink);
+        }
+
+        .slider-row input[type="range"] {
+            width: 140px;
+            accent-color: var(--teal);
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 1rem;
+            color: var(--orange);
+        }
+
+        /* Pattern selection */
+        .pattern-selection {
+            margin-bottom: 15px;
+        }
+
+        .pattern-selection h3 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: var(--ink);
+            font-weight: 400;
+            font-size: 1rem;
+        }
+
+        .patterns-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+
+        .pattern-btn {
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--calc-bg);
+            color: var(--ink);
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: monospace;
+            transition: all 0.2s;
+        }
+
+        .pattern-btn:hover {
+            border-color: var(--purple);
+        }
+
+        .pattern-btn.selected {
+            border-color: var(--green);
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        /* State selection */
+        .state-selection {
+            margin-bottom: 15px;
+        }
+
+        .state-selection h3 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: var(--ink);
+            font-weight: 400;
+            font-size: 1rem;
+        }
+
+        .states-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+
+        .state-btn {
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--calc-bg);
+            color: var(--ink);
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: monospace;
+            transition: all 0.2s;
+        }
+
+        .state-btn:hover {
+            border-color: var(--orange);
+        }
+
+        .state-btn.selected {
+            border-color: var(--orange);
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        /* J display */
+        .j-display {
+            text-align: center;
+            padding: 12px;
+            background: var(--calc-bg);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px dashed var(--border);
+        }
+
+        .j-display h3 {
+            margin-bottom: 8px;
+            color: var(--ink);
+            font-weight: 400;
+            font-size: 1rem;
+        }
+
+        .j-value {
+            font-size: 1.5rem;
+            font-family: 'Times New Roman', serif;
+            color: var(--purple);
+        }
+
+        .j-formula {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: var(--ink);
+            opacity: 0.8;
+            font-family: 'Times New Roman', serif;
+        }
+
+        /* Energy display */
+        .energy-display {
+            text-align: center;
+            padding: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid var(--green);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .energy-display h3 {
+            margin-bottom: 8px;
+            color: var(--ink);
+            font-weight: 400;
+            font-size: 1rem;
+        }
+
+        .energy-value {
+            font-size: 1.5rem;
+            font-family: 'Times New Roman', serif;
+            color: var(--green);
+        }
+
+        /* Graph */
+        .graph-container {
+            margin-top: 15px;
+        }
+
+        .graph-container h3 {
+            text-align: center;
+            margin-bottom: 8px;
+            color: var(--ink);
+            font-weight: 400;
+            font-size: 0.95rem;
+        }
+
+        .graph-canvas {
+            width: 100%;
+            height: 220px;
+            background: #0a0f18;
+            border-radius: 8px;
+        }
+
+        /* Energy table */
+        .energy-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 0.9rem;
+        }
+
+        .energy-table th, .energy-table td {
+            padding: 6px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .energy-table th {
+            background: rgba(17, 168, 160, 0.2);
+            color: var(--teal);
+            font-weight: 400;
+        }
+
+        .energy-table tr.current {
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        .energy-table tr.minimum {
+            background: rgba(34, 197, 94, 0.15);
+        }
+
+        .energy-table tr.stored {
+            color: var(--green);
+        }
+
+        /* Locked indicator */
+        .locked-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid var(--green);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            color: var(--green);
+            font-size: 0.9rem;
+        }
+
+        .locked-indicator::before {
+            content: "🔒";
+        }
+
+        /* Calculation Panel Styles */
+        .calc .sec {
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            background: var(--calc-bg);
+            margin-top: 10px;
+        }
+
+        .calc .sec.highlight {
+            border-color: var(--green);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+        }
+
+        .calc .head {
+            font-weight: 400;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            font-size: 1rem;
+        }
+
+        .calc .eq {
+            font-size: 1.35rem;
+            line-height: 1.8;
+            font-family: 'Times New Roman', serif;
+            direction: ltr;
+            text-align: center;
+        }
+
+        .calc .eq-small {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            font-family: 'Times New Roman', serif;
+            direction: ltr;
+            text-align: center;
+        }
+
+        .hl-teal { color: var(--teal); font-weight: 500; }
+        .hl-magenta { color: var(--magenta); font-weight: 500; }
+        .hl-purple { color: var(--purple); font-weight: 500; }
+        .hl-green { color: var(--green); font-weight: 500; }
+        .hl-orange { color: var(--orange); font-weight: 500; }
+        .hl-cyan { color: #00bfff; font-weight: 500; }
+
+        .calc-result {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 10px;
+            border: 1px solid var(--green);
+            font-family: 'Times New Roman', serif;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 22px;
+            height: 22px;
+            background: var(--purple);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 22px;
+            font-size: 0.85rem;
+            margin-left: 6px;
+        }
+
+        .fraction {
+            display: inline-block;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .fraction .num {
+            display: block;
+            border-bottom: 1px solid currentColor;
+            padding: 0 3px;
+        }
+
+        .fraction .den {
+            display: block;
+            padding: 0 3px;
+        }
+
+        .sum-notation {
+            font-size: 1.5rem;
+            vertical-align: middle;
+        }
+
+        .subscript {
+            font-size: 0.75em;
+            vertical-align: sub;
+        }
+
+        .superscript {
+            font-size: 0.75em;
+            vertical-align: super;
+        }
+
+        .matrix-table {
+            margin: 8px auto;
+            border-collapse: collapse;
+        }
+
+        .matrix-table td {
+            padding: 4px 8px;
+            text-align: center;
+            font-family: 'Times New Roman', serif;
+            font-size: 1.05rem;
+        }
+
+        .matrix-table .header {
+            color: var(--purple);
+            font-style: italic;
+        }
+
+        .matrix-table .row-header {
+            color: var(--teal);
+            font-style: italic;
+        }
+
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+            }
+            .phase.calculations {
+                grid-column: span 2;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .phase.calculations {
+                grid-column: span 1;
+            }
+        }
+
+        /* Footer */
+        .site-footer {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            font-size: 11px;
+            color: var(--ink);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hopfield Network - 2 Neurons</h1>
+    <div class="subtitle">Understanding the Learning Phase and the Execution Phase</div>
+
+    <div class="container">
+        <!-- Left: Learning Phase -->
+        <div class="phase learning">
+            <div class="phase-title">Phase 1: Learning</div>
+
+            <div class="phase-description">
+                In this phase you choose which patterns the network will remember.<br>
+                The weight J<sub>ij</sub> is calculated based on the selected patterns.
+            </div>
+
+            <!-- State Diagram -->
+            <div class="diagram-container">
+                <svg class="diagram-svg" viewBox="0 0 400 180">
+                    <!-- Edge (bidirectional) -->
+                    <line id="edge-learning" x1="120" y1="90" x2="280" y2="90" class="edge" />
+
+                    <!-- Weight label -->
+                    <text id="weightLabel-learning" x="200" y="65" text-anchor="middle" class="weight-label">
+                        <tspan>J</tspan><tspan dy="4" font-size="11">ij</tspan><tspan dy="-4"> = 0.00</tspan>
+                    </text>
+
+                    <!-- Neuron i -->
+                    <g id="neuron1-learning-group">
+                        <circle id="neuron1-learning" cx="100" cy="90" r="35" fill="var(--teal)" />
+                        <text x="100" y="95" text-anchor="middle" class="neuron-label">A</text>
+                        <text id="pi-value-learning" x="100" y="145" text-anchor="middle" class="value-display-svg">−</text>
+                    </g>
+
+                    <!-- Neuron B -->
+                    <g id="neuron2-learning-group">
+                        <circle id="neuron2-learning" cx="300" cy="90" r="35" fill="var(--magenta)" />
+                        <text x="300" y="95" text-anchor="middle" class="neuron-label">B</text>
+                        <text id="pj-value-learning" x="300" y="145" text-anchor="middle" class="value-display-svg">−</text>
+                    </g>
+                </svg>
+            </div>
+
+            <div class="pattern-selection">
+                <h3>Select patterns to store:</h3>
+                <div class="patterns-grid">
+                    <button class="pattern-btn" data-pattern="1,1">(+1, +1)</button>
+                    <button class="pattern-btn" data-pattern="1,-1">(+1, −1)</button>
+                    <button class="pattern-btn" data-pattern="-1,1">(−1, +1)</button>
+                    <button class="pattern-btn" data-pattern="-1,-1">(−1, −1)</button>
+                </div>
+            </div>
+
+            <div class="j-display">
+                <h3>Weight calculation:</h3>
+                <div class="j-formula">J<sub>ij</sub> = (1/N) × Σ p<sub>i</sub><sup>μ</sup> × p<sub>j</sub><sup>μ</sup></div>
+                <div class="j-value" id="j-value-learning">J<sub>ij</sub> = 0</div>
+                <div id="j-calculation" style="margin-top: 8px; font-size: 0.85rem; opacity: 0.8;"></div>
+            </div>
+
+            <div class="graph-container">
+                <h3>Energy surface (varies by patterns):</h3>
+                <canvas id="learningCanvas" class="graph-canvas"></canvas>
+            </div>
+
+            <!-- Separator for slider section -->
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed rgba(255,255,255,0.2);">
+                <div style="text-align: center; margin-bottom: 10px; color: #94a3b8; font-size: 0.9rem;">
+                    Scan by sliders (Extension):
+                </div>
+            </div>
+
+            <!-- Sliders for pi and pj - at bottom with matching style -->
+            <div class="sliders-container" style="background: #1a2535; border: 1px dashed #4b6584;">
+                <div class="slider-row">
+                    <span class="slider-value" id="pi-slider-display" style="color: #5eead4;">+1.00</span>
+                    <input type="range" id="pi-slider" min="-1" max="1" step="0.1" value="1">
+                    <label style="color: #5eead4;">A:</label>
+                </div>
+                <div class="slider-row">
+                    <span class="slider-value" id="pj-slider-display" style="color: #f9a8d4;">+1.00</span>
+                    <input type="range" id="pj-slider" min="-1" max="1" step="0.1" value="1">
+                    <label style="color: #f9a8d4;">B:</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle: Running Phase -->
+        <div class="phase running">
+            <div class="phase-title">Phase 2: Execution</div>
+
+            <div class="phase-description">
+                Learning is complete. J<sub>ij</sub> is fixed and does not change.<br>
+                Now select an initial state and the network converges to a minimum.
+            </div>
+
+            <!-- State Diagram for Running -->
+            <div class="diagram-container">
+                <svg class="diagram-svg" viewBox="0 0 400 180">
+                    <!-- Edge (bidirectional) -->
+                    <line id="edge-running" x1="120" y1="90" x2="280" y2="90" class="edge" />
+
+                    <!-- Weight label -->
+                    <text id="weightLabel-running" x="200" y="65" text-anchor="middle" class="weight-label">
+                        <tspan>J</tspan><tspan dy="4" font-size="11">ij</tspan><tspan dy="-4"> = 0.00</tspan>
+                    </text>
+
+                    <!-- Neuron i -->
+                    <g id="neuron1-running-group">
+                        <circle id="neuron1-running" cx="100" cy="90" r="35" fill="var(--teal)" />
+                        <text x="100" y="95" text-anchor="middle" class="neuron-label">A</text>
+                        <text id="pi-value-running" x="100" y="145" text-anchor="middle" class="value-display-svg">+1</text>
+                    </g>
+
+                    <!-- Neuron B -->
+                    <g id="neuron2-running-group">
+                        <circle id="neuron2-running" cx="300" cy="90" r="35" fill="var(--magenta)" />
+                        <text x="300" y="95" text-anchor="middle" class="neuron-label">B</text>
+                        <text id="pj-value-running" x="300" y="145" text-anchor="middle" class="value-display-svg">+1</text>
+                    </g>
+                </svg>
+            </div>
+
+            <div class="locked-indicator">
+                The weight J<sub>ij</sub> is locked &mdash; no longer changes
+            </div>
+
+            <div class="state-selection">
+                <h3>Select current state:</h3>
+                <div class="states-grid">
+                    <button class="state-btn" data-state="1,1">(+1, +1)</button>
+                    <button class="state-btn" data-state="1,-1">(+1, −1)</button>
+                    <button class="state-btn" data-state="-1,1">(−1, +1)</button>
+                    <button class="state-btn" data-state="-1,-1">(−1, −1)</button>
+                </div>
+            </div>
+
+            <div class="energy-display">
+                <h3>Energy at current state:</h3>
+                <div class="energy-value" id="current-energy">E = 0</div>
+            </div>
+
+            <div class="graph-container">
+                <h3>Energy surface (fixed):</h3>
+                <canvas id="runningCanvas" class="graph-canvas"></canvas>
+            </div>
+
+            <table class="energy-table">
+                <thead>
+                    <tr>
+                        <th>State (A, B)</th>
+                        <th>Energy E</th>
+                        <th>Stored pattern?</th>
+                    </tr>
+                </thead>
+                <tbody id="energy-tbody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Right: Calculations - copied from V5 -->
+        <div class="phase calculations">
+            <div class="phase-title">Energy Calculation &mdash; Formulas</div>
+
+            <div class="calc">
+                <!-- Weight Formula -->
+                <div class="sec">
+                    <div class="head"><span class="step-number">1</span> Weight formula (Hebbian Learning):</div>
+                    <div class="eq">
+                        <span class="hl-purple">J<sub>ij</sub></span> =
+                        <span class="fraction">
+                            <span class="num">1</span>
+                            <span class="den"><span class="hl-orange">N</span></span>
+                        </span>
+                        <span class="sum-notation">∑</span><sup class="superscript"><span class="hl-magenta">P</span></sup><sub class="subscript">μ=1</sub>
+                        <span class="hl-teal">p<sub>i</sub><sup>μ</sup></span> · <span class="hl-magenta">p<sub>j</sub><sup>μ</sup></span>
+                        &nbsp;&nbsp; (i ≠ j)
+                    </div>
+                    <div class="eq-small" style="margin-top: 8px; opacity: 0.7;">
+                        J<sub>ii</sub> = 0 &nbsp;&nbsp; (No self-connection)
+                    </div>
+                </div>
+
+                <!-- Weight Calculation -->
+                <div class="sec">
+                    <div class="head"><span class="step-number">2</span> Weight calculation J<sub>ij</sub>:</div>
+                    <div class="eq" id="calc-weight">
+                        J<sub>ij</sub> =
+                        <span class="fraction">
+                            <span class="num">1</span>
+                            <span class="den"><span class="hl-orange">2</span></span>
+                        </span>
+                        × [<span class="hl-teal">(+1.00)</span> · <span class="hl-magenta">(+1.00)</span>]
+                        = <span class="hl-purple">+0.50</span>
+                    </div>
+                </div>
+
+                <!-- Energy Formula -->
+                <div class="sec">
+                    <div class="head"><span class="step-number">3</span> Energy formula:</div>
+                    <div class="eq">
+                        E = −<span class="fraction">
+                            <span class="num"><span class="hl-cyan">1</span></span>
+                            <span class="den"><span class="hl-cyan">2</span></span>
+                        </span>
+                        <span class="sum-notation">∑</span><sub class="subscript">i</sub>
+                        <span class="sum-notation">∑</span><sub class="subscript">j≠i</sub>
+                        <span class="hl-purple">J<sub>ij</sub></span> · <span class="hl-teal">s<sub>i</sub></span> · <span class="hl-magenta">s<sub>j</sub></span>
+                    </div>
+                </div>
+
+                <!-- Energy Calculation -->
+                <div class="sec">
+                    <div class="head"><span class="step-number">4</span> Substitution and calculation:</div>
+                    <div class="eq" id="calc-substitution">
+                        E = −<span class="fraction">
+                            <span class="num"><span class="hl-cyan">1</span></span>
+                            <span class="den"><span class="hl-cyan">2</span></span>
+                        </span>
+                        × [<span class="hl-purple">J<sub>ij</sub></span>·<span class="hl-teal">s<sub>i</sub></span>·<span class="hl-magenta">s<sub>j</sub></span> + <span class="hl-purple">J<sub>ji</sub></span>·<span class="hl-magenta">s<sub>j</sub></span>·<span class="hl-teal">s<sub>i</sub></span>]
+                    </div>
+                    <div class="eq" id="calc-substitution-values" style="margin-top: 8px;">
+                        = −<span class="fraction">
+                            <span class="num"><span class="hl-cyan">1</span></span>
+                            <span class="den"><span class="hl-cyan">2</span></span>
+                        </span>
+                        × [<span class="hl-purple">(+0.50)</span>·<span class="hl-teal">(+1)</span>·<span class="hl-magenta">(+1)</span> + <span class="hl-purple">(+0.50)</span>·<span class="hl-magenta">(+1)</span>·<span class="hl-teal">(+1)</span>]
+                    </div>
+                </div>
+
+                <!-- Final Result -->
+                <div class="sec highlight">
+                    <div class="head"><span class="step-number">5</span> Final result:</div>
+                    <div class="eq" id="calc-final">
+                        E = −<span class="fraction">
+                            <span class="num"><span class="hl-cyan">1</span></span>
+                            <span class="den"><span class="hl-cyan">2</span></span>
+                        </span>
+                        × <span class="hl-orange">(+1.00)</span>
+                        = <span class="hl-green">−0.50</span>
+                    </div>
+                </div>
+
+                <div class="calc-result">
+                    <span id="calc-result-text">E = <span class="hl-green">−0.50</span></span>
+                </div>
+
+                <!-- Weight Matrix Display -->
+                <div class="sec" style="margin-top: 15px;">
+                    <div class="head">Weight matrix J<sub>ij</sub>:</div>
+                    <table class="matrix-table" id="weight-matrix">
+                        <tr>
+                            <td class="header">J<sub>ij</sub></td>
+                            <td class="header">j=1</td>
+                            <td class="header">j=2</td>
+                        </tr>
+                        <tr>
+                            <td class="row-header">i=1</td>
+                            <td>0</td>
+                            <td id="j12">+0.50</td>
+                        </tr>
+                        <tr>
+                            <td class="row-header">i=2</td>
+                            <td id="j21">+0.50</td>
+                            <td>0</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Separator -->
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 2px dashed rgba(255,255,255,0.2);">
+                    <div style="text-align: center; margin-bottom: 10px; color: #94a3b8; font-size: 0.9rem;">
+                        Scan by sliders (Extension):
+                    </div>
+                </div>
+
+                <!-- Step 6: Slider-based Weight Calculation -->
+                <div class="sec" style="background: #1a2535; border-color: #4b6584;">
+                    <div class="head"><span class="step-number" style="background: #60a5fa;">6</span> Weight calculation by slider values:</div>
+                    <div class="eq" id="calc-weight-slider">
+                        J<sub>ij</sub> =
+                        <span class="fraction">
+                            <span class="num">1</span>
+                            <span class="den"><span style="color: #fbbf24;">2</span></span>
+                        </span>
+                        × [<span style="color: #5eead4;">(+1.00)</span> · <span style="color: #f9a8d4;">(+1.00)</span>]
+                        = <span style="color: #c4b5fd;">+0.50</span>
+                    </div>
+                </div>
+
+                <!-- Step 7: Slider-based Energy Calculation -->
+                <div class="sec" style="background: #1a2535; border-color: #4b6584;">
+                    <div class="head"><span class="step-number" style="background: #60a5fa;">7</span> Substitution and calculation by sliders:</div>
+                    <div class="eq" id="calc-substitution-slider">
+                        E = −<span class="fraction">
+                            <span class="num"><span style="color: #00bfff;">1</span></span>
+                            <span class="den"><span style="color: #00bfff;">2</span></span>
+                        </span>
+                        × [<span style="color: #c4b5fd;">J<sub>ij</sub></span>·<span style="color: #5eead4;">s<sub>i</sub></span>·<span style="color: #f9a8d4;">s<sub>j</sub></span> + <span style="color: #c4b5fd;">J<sub>ji</sub></span>·<span style="color: #f9a8d4;">s<sub>j</sub></span>·<span style="color: #5eead4;">s<sub>i</sub></span>]
+                    </div>
+                    <div class="eq" id="calc-substitution-slider-values" style="margin-top: 8px;">
+                        = −<span class="fraction">
+                            <span class="num"><span style="color: #00bfff;">1</span></span>
+                            <span class="den"><span style="color: #00bfff;">2</span></span>
+                        </span>
+                        × [<span style="color: #c4b5fd;">(+0.50)</span>·<span style="color: #5eead4;">(+1.00)</span>·<span style="color: #f9a8d4;">(+1.00)</span> + <span style="color: #c4b5fd;">(+0.50)</span>·<span style="color: #f9a8d4;">(+1.00)</span>·<span style="color: #5eead4;">(+1.00)</span>]
+                    </div>
+                </div>
+
+                <!-- Slider Result -->
+                <div class="sec" style="background: #1a2535; border-color: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.3);">
+                    <div class="head"><span class="step-number" style="background: #60a5fa;">E</span> Result by sliders:</div>
+                    <div class="eq" id="calc-final-slider">
+                        E = −<span class="fraction">
+                            <span class="num"><span style="color: #00bfff;">1</span></span>
+                            <span class="den"><span style="color: #00bfff;">2</span></span>
+                        </span>
+                        × <span style="color: #fbbf24;">(+1.00)</span>
+                        = <span style="color: #4ade80;">−0.50</span>
+                    </div>
+                </div>
+
+                <div class="calc-result" style="background: rgba(52, 211, 153, 0.15); border-color: #34d399;">
+                    <span id="calc-result-slider">E = <span style="color: #4ade80;">−0.50</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let storedPatterns = []; // patterns selected for storage
+        let Jij = 0; // the calculated weight
+        let currentState = {pi: 1, pj: 1}; // the current state
+        let sliderPi = 1; // slider value p_i - default +1
+        let sliderPj = 1; // slider value p_j - default +1
+        const N = 2; // fixed number of neurons
+
+        // DOM elements
+        const patternBtns = document.querySelectorAll('.pattern-btn');
+        const stateBtns = document.querySelectorAll('.state-btn');
+        const jValueLearning = document.getElementById('j-value-learning');
+        const jCalculation = document.getElementById('j-calculation');
+        const currentEnergyDisplay = document.getElementById('current-energy');
+        const energyTbody = document.getElementById('energy-tbody');
+        const learningCanvas = document.getElementById('learningCanvas');
+        const runningCanvas = document.getElementById('runningCanvas');
+        const learningCtx = learningCanvas.getContext('2d');
+        const runningCtx = runningCanvas.getContext('2d');
+
+        // Slider elements
+        const piSlider = document.getElementById('pi-slider');
+        const pjSlider = document.getElementById('pj-slider');
+        const piSliderDisplay = document.getElementById('pi-slider-display');
+        const pjSliderDisplay = document.getElementById('pj-slider-display');
+
+        // Calculation panel elements
+        const calcWeight = document.getElementById('calc-weight');
+        const calcSubstitution = document.getElementById('calc-substitution');
+        const calcSubstitutionValues = document.getElementById('calc-substitution-values');
+        const calcFinal = document.getElementById('calc-final');
+        const calcResultText = document.getElementById('calc-result-text');
+        const j12Cell = document.getElementById('j12');
+        const j21Cell = document.getElementById('j21');
+
+        // Slider-based calculation elements (steps 6, 7, E)
+        const calcWeightSlider = document.getElementById('calc-weight-slider');
+        const calcSubstitutionSlider = document.getElementById('calc-substitution-slider');
+        const calcSubstitutionSliderValues = document.getElementById('calc-substitution-slider-values');
+        const calcFinalSlider = document.getElementById('calc-final-slider');
+        const calcResultSlider = document.getElementById('calc-result-slider');
+
+        // SVG elements - Learning
+        const weightLabelLearning = document.getElementById('weightLabel-learning');
+        const piValueLearning = document.getElementById('pi-value-learning');
+        const pjValueLearning = document.getElementById('pj-value-learning');
+        const edgeLearning = document.getElementById('edge-learning');
+
+        // SVG elements - Running
+        const weightLabelRunning = document.getElementById('weightLabel-running');
+        const piValueRunning = document.getElementById('pi-value-running');
+        const pjValueRunning = document.getElementById('pj-value-running');
+        const edgeRunning = document.getElementById('edge-running');
+
+        // Calculate J from stored patterns
+        function calculateJ() {
+            if (storedPatterns.length === 0) {
+                return 0;
+            }
+
+            let sum = 0;
+            for (const pattern of storedPatterns) {
+                sum += pattern.pi * pattern.pj;
+            }
+            return sum / N;
+        }
+
+        // Calculate energy
+        function calcEnergy(pi, pj, J) {
+            return -J * pi * pj;
+        }
+
+        // Format number with sign
+        function formatNum(n) {
+            const formatted = n.toFixed(2);
+            return (n >= 0 ? '+' : '') + formatted;
+        }
+
+        function formatNumSimple(n) {
+            return n >= 0 ? '+1' : '−1';
+        }
+
+        // Update slider displays
+        function updateSliderDisplays() {
+            piSliderDisplay.textContent = formatNum(sliderPi);
+            pjSliderDisplay.textContent = formatNum(sliderPj);
+        }
+
+        // Update SVG diagrams
+        function updateDiagrams() {
+            // Update J labels
+            weightLabelLearning.innerHTML = `<tspan>J</tspan><tspan dy="4" font-size="11">ij</tspan><tspan dy="-4"> = ${formatNum(Jij)}</tspan>`;
+            weightLabelRunning.innerHTML = `<tspan>J</tspan><tspan dy="4" font-size="11">ij</tspan><tspan dy="-4"> = ${formatNum(Jij)}</tspan>`;
+
+            // Update edge color based on weight
+            const edgeColor = Jij > 0 ? '#a78bfa' : Jij < 0 ? '#ef4444' : '#4b5563';
+            edgeLearning.setAttribute('stroke', edgeColor);
+            edgeRunning.setAttribute('stroke', edgeColor);
+
+            // Learning diagram shows pattern values if exactly one pattern is selected
+            // Otherwise shows slider values (for exploration mode)
+            if (storedPatterns.length === 1) {
+                piValueLearning.textContent = formatNumSimple(storedPatterns[0].pi);
+                pjValueLearning.textContent = formatNumSimple(storedPatterns[0].pj);
+            } else if (storedPatterns.length > 1) {
+                piValueLearning.textContent = '...';
+                pjValueLearning.textContent = '...';
+            } else {
+                piValueLearning.textContent = '−';
+                pjValueLearning.textContent = '−';
+            }
+
+            // Running diagram shows current state
+            piValueRunning.textContent = formatNumSimple(currentState.pi);
+            pjValueRunning.textContent = formatNumSimple(currentState.pj);
+        }
+
+        // Update J display and calculation breakdown
+        function updateJDisplay() {
+            Jij = calculateJ();
+
+            jValueLearning.innerHTML = `J<sub>ij</sub> = ${formatNum(Jij)}`;
+
+            // Show calculation breakdown
+            if (storedPatterns.length === 0) {
+                jCalculation.textContent = 'No patterns selected';
+            } else {
+                const terms = storedPatterns.map(p => `(${p.pi > 0 ? '+1' : '−1'})×(${p.pj > 0 ? '+1' : '−1'})`);
+                const products = storedPatterns.map(p => p.pi * p.pj);
+                const sum = products.reduce((a, b) => a + b, 0);
+                jCalculation.innerHTML = `= (1/${N}) × [${terms.join(' + ')}] = (1/${N}) × ${sum} = ${formatNum(Jij)}`;
+            }
+        }
+
+        // Update calculation panel with proper notation
+        function updateCalculationPanel() {
+            const P = storedPatterns.length;
+
+            // === STANDARD HOPFIELD (Steps 2, 4, 5, E) - uses currentState ===
+            const stateE = calcEnergy(currentState.pi, currentState.pj, Jij);
+            const stateIntermediate = Jij * currentState.pi * currentState.pj * 2;
+
+            // Step 2: Weight calculation - uses stored patterns
+            if (P === 0) {
+                calcWeight.innerHTML = `J<sub>ij</sub> = No patterns selected`;
+            } else {
+                const terms = storedPatterns.map(p => `(<span class="hl-teal">${formatNumSimple(p.pi)}</span>·<span class="hl-magenta">${formatNumSimple(p.pj)}</span>)`);
+                calcWeight.innerHTML = `
+                    J<sub>ij</sub> =
+                    <span class="fraction">
+                        <span class="num">1</span>
+                        <span class="den"><span class="hl-orange">${N}</span></span>
+                    </span>
+                    × [${terms.join(' + ')}]
+                    = <span class="hl-purple">${formatNum(Jij)}</span>
+                `;
+            }
+
+            // Step 4: Substitution - uses CURRENT STATE (not sliders!) - shows sum explicitly
+            const piStr = formatNumSimple(currentState.pi);
+            const pjStr = formatNumSimple(currentState.pj);
+
+            calcSubstitution.innerHTML = `
+                E = −<span class="fraction">
+                    <span class="num"><span class="hl-cyan">1</span></span>
+                    <span class="den"><span class="hl-cyan">2</span></span>
+                </span>
+                × [<span class="hl-purple">J<sub>ij</sub></span>·<span class="hl-teal">s<sub>i</sub></span>·<span class="hl-magenta">s<sub>j</sub></span> + <span class="hl-purple">J<sub>ji</sub></span>·<span class="hl-magenta">s<sub>j</sub></span>·<span class="hl-teal">s<sub>i</sub></span>]
+            `;
+
+            calcSubstitutionValues.innerHTML = `
+                = −<span class="fraction">
+                    <span class="num"><span class="hl-cyan">1</span></span>
+                    <span class="den"><span class="hl-cyan">2</span></span>
+                </span>
+                × [<span class="hl-purple">(${formatNum(Jij)})</span>·<span class="hl-teal">(${piStr})</span>·<span class="hl-magenta">(${pjStr})</span> + <span class="hl-purple">(${formatNum(Jij)})</span>·<span class="hl-magenta">(${pjStr})</span>·<span class="hl-teal">(${piStr})</span>]
+            `;
+
+            // Step 5: Final result - uses CURRENT STATE
+            calcFinal.innerHTML = `
+                E = −<span class="fraction">
+                    <span class="num"><span class="hl-cyan">1</span></span>
+                    <span class="den"><span class="hl-cyan">2</span></span>
+                </span>
+                × <span class="hl-orange">(${formatNum(stateIntermediate)})</span>
+                = <span class="hl-green">${formatNum(stateE)}</span>
+            `;
+
+            calcResultText.innerHTML = `E = <span class="hl-green">${formatNum(stateE)}</span>`;
+
+            // Update weight matrix
+            j12Cell.textContent = formatNum(Jij);
+            j21Cell.textContent = formatNum(Jij);
+            j12Cell.style.color = Jij >= 0 ? 'var(--green)' : 'var(--magenta)';
+            j21Cell.style.color = Jij >= 0 ? 'var(--green)' : 'var(--magenta)';
+
+            // === SLIDER-BASED CALCULATIONS (Steps 6, 7, E) ===
+            // These calculate J and E as if the slider values were pattern values
+            const sliderJij = (1 / N) * sliderPi * sliderPj;
+            const sliderE = calcEnergy(sliderPi, sliderPj, sliderJij);
+            const sliderIntermediate = sliderJij * sliderPi * sliderPj * 2;
+
+            // Step 6: Weight from slider values
+            calcWeightSlider.innerHTML = `
+                J<sub>ij</sub> =
+                <span class="fraction">
+                    <span class="num">1</span>
+                    <span class="den"><span style="color: #fbbf24;">${N}</span></span>
+                </span>
+                × [<span style="color: #5eead4;">(${formatNum(sliderPi)})</span> · <span style="color: #f9a8d4;">(${formatNum(sliderPj)})</span>]
+                = <span style="color: #c4b5fd;">${formatNum(sliderJij)}</span>
+            `;
+
+            // Step 7: Energy substitution with slider values - shows sum explicitly
+            calcSubstitutionSlider.innerHTML = `
+                E = −<span class="fraction">
+                    <span class="num"><span style="color: #00bfff;">1</span></span>
+                    <span class="den"><span style="color: #00bfff;">2</span></span>
+                </span>
+                × [<span style="color: #c4b5fd;">J<sub>ij</sub></span>·<span style="color: #5eead4;">s<sub>i</sub></span>·<span style="color: #f9a8d4;">s<sub>j</sub></span> + <span style="color: #c4b5fd;">J<sub>ji</sub></span>·<span style="color: #f9a8d4;">s<sub>j</sub></span>·<span style="color: #5eead4;">s<sub>i</sub></span>]
+            `;
+
+            calcSubstitutionSliderValues.innerHTML = `
+                = −<span class="fraction">
+                    <span class="num"><span style="color: #00bfff;">1</span></span>
+                    <span class="den"><span style="color: #00bfff;">2</span></span>
+                </span>
+                × [<span style="color: #c4b5fd;">(${formatNum(sliderJij)})</span>·<span style="color: #5eead4;">(${formatNum(sliderPi)})</span>·<span style="color: #f9a8d4;">(${formatNum(sliderPj)})</span> + <span style="color: #c4b5fd;">(${formatNum(sliderJij)})</span>·<span style="color: #f9a8d4;">(${formatNum(sliderPj)})</span>·<span style="color: #5eead4;">(${formatNum(sliderPi)})</span>]
+            `;
+
+            // Step E: Final result from sliders
+            calcFinalSlider.innerHTML = `
+                E = −<span class="fraction">
+                    <span class="num"><span style="color: #00bfff;">1</span></span>
+                    <span class="den"><span style="color: #00bfff;">2</span></span>
+                </span>
+                × <span style="color: #fbbf24;">(${formatNum(sliderIntermediate)})</span>
+                = <span style="color: #4ade80;">${formatNum(sliderE)}</span>
+            `;
+
+            calcResultSlider.innerHTML = `E = <span style="color: #4ade80;">${formatNum(sliderE)}</span>`;
+        }
+
+        // Update energy table
+        function updateEnergyTable() {
+            const states = [
+                {pi: 1, pj: 1},
+                {pi: 1, pj: -1},
+                {pi: -1, pj: 1},
+                {pi: -1, pj: -1}
+            ];
+
+            const energies = states.map(s => ({
+                ...s,
+                E: calcEnergy(s.pi, s.pj, Jij),
+                isStored: storedPatterns.some(p => p.pi === s.pi && p.pj === s.pj)
+            }));
+
+            const minE = Math.min(...energies.map(e => e.E));
+
+            energyTbody.innerHTML = energies.map(s => {
+                const isCurrent = s.pi === currentState.pi && s.pj === currentState.pj;
+                const isMin = s.E === minE && Jij !== 0;
+
+                let className = '';
+                if (isCurrent) className = 'current';
+                else if (isMin) className = 'minimum';
+
+                const storedClass = s.isStored ? 'stored' : '';
+
+                return `<tr class="${className} ${storedClass}">
+                    <td>(${s.pi > 0 ? '+1' : '−1'}, ${s.pj > 0 ? '+1' : '−1'})</td>
+                    <td>${formatNum(s.E)}</td>
+                    <td>${s.isStored ? '✓' : ''}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Update current energy display
+        function updateCurrentEnergy() {
+            const E = calcEnergy(currentState.pi, currentState.pj, Jij);
+            currentEnergyDisplay.textContent = `E = ${formatNum(E)}`;
+        }
+
+        // Draw energy surface
+        function drawEnergySurface(canvas, ctx, J, highlightState = null, showSliderPoint = false) {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            const width = rect.width;
+            const height = rect.height;
+
+            // Clear
+            ctx.fillStyle = '#0a0f18';
+            ctx.fillRect(0, 0, width, height);
+
+            // Parameters for 3D projection
+            const centerX = width / 2;
+            const centerY = height / 2 + 15;
+            const scaleX = 70;
+            const scaleY = 45;
+            const scaleZ = 45;
+
+            function project(x, y, z) {
+                const px = centerX + (x - y) * scaleX * 0.7;
+                const py = centerY - z * scaleZ + (x + y) * scaleY * 0.3;
+                return {x: px, y: py};
+            }
+
+            // Draw surface
+            const resolution = 12;
+            const points = [];
+
+            for (let i = 0; i <= resolution; i++) {
+                points[i] = [];
+                for (let j = 0; j <= resolution; j++) {
+                    const x = -1 + (2 * i / resolution);
+                    const y = -1 + (2 * j / resolution);
+                    const z = calcEnergy(x, y, J);
+                    points[i][j] = {x, y, z, ...project(x, y, z)};
+                }
+            }
+
+            // Draw surface with gradient colors
+            const maxZ = Math.abs(J) || 0.5;
+            for (let i = 0; i < resolution; i++) {
+                for (let j = 0; j < resolution; j++) {
+                    const p1 = points[i][j];
+                    const p2 = points[i+1][j];
+                    const p3 = points[i+1][j+1];
+                    const p4 = points[i][j+1];
+
+                    const avgZ = (p1.z + p2.z + p3.z + p4.z) / 4;
+                    const normalizedZ = (avgZ + maxZ) / (2 * maxZ);
+
+                    const r = Math.floor(100 + 155 * normalizedZ);
+                    const g = Math.floor(180 - 100 * normalizedZ);
+                    const b = Math.floor(100 - 50 * normalizedZ);
+
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.7)`;
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.9)`;
+                    ctx.lineWidth = 0.5;
+
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.lineTo(p3.x, p3.y);
+                    ctx.lineTo(p4.x, p4.y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+
+            // Draw axes
+            ctx.strokeStyle = '#4b5563';
+            ctx.lineWidth = 2;
+
+            const piStart = project(-1.3, 0, 0);
+            const piEnd = project(1.3, 0, 0);
+            ctx.beginPath();
+            ctx.moveTo(piStart.x, piStart.y);
+            ctx.lineTo(piEnd.x, piEnd.y);
+            ctx.stroke();
+
+            const pjStart = project(0, -1.3, 0);
+            const pjEnd = project(0, 1.3, 0);
+            ctx.beginPath();
+            ctx.moveTo(pjStart.x, pjStart.y);
+            ctx.lineTo(pjEnd.x, pjEnd.y);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#11a8a0';
+            ctx.font = 'italic 12px Times New Roman';
+            const piLabelPos = project(1.5, 0, 0);
+            ctx.fillText('A', piLabelPos.x, piLabelPos.y);
+
+            ctx.fillStyle = '#f472b6';
+            const pjLabelPos = project(0, 1.5, 0);
+            ctx.fillText('B', pjLabelPos.x, pjLabelPos.y);
+
+            ctx.fillStyle = '#22c55e';
+            ctx.font = 'italic 14px Times New Roman';
+            ctx.fillText('E', centerX - 50, 15);
+
+            // Draw the 4 discrete states
+            const discreteStates = [
+                {pi: 1, pj: 1},
+                {pi: 1, pj: -1},
+                {pi: -1, pj: 1},
+                {pi: -1, pj: -1}
+            ];
+
+            discreteStates.forEach(state => {
+                const E = calcEnergy(state.pi, state.pj, J);
+                const pos = project(state.pi, state.pj, E);
+
+                const isStored = storedPatterns.some(p => p.pi === state.pi && p.pj === state.pj);
+                const isCurrent = highlightState && state.pi === highlightState.pi && state.pj === highlightState.pj;
+
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, isCurrent ? 10 : 6, 0, Math.PI * 2);
+
+                if (isCurrent) {
+                    ctx.fillStyle = '#f59e0b'; // Orange for current
+                } else if (isStored) {
+                    ctx.fillStyle = '#22c55e'; // Green for stored
+                } else {
+                    ctx.fillStyle = '#a78bfa'; // Purple for others
+                }
+
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // Draw slider point on learning canvas
+            if (showSliderPoint) {
+                const sliderE = calcEnergy(sliderPi, sliderPj, J);
+                const sliderPos = project(sliderPi, sliderPj, sliderE);
+
+                // Vertical line from surface to base
+                const basePos = project(sliderPi, sliderPj, 0);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(basePos.x, basePos.y);
+                ctx.lineTo(sliderPos.x, sliderPos.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Current point (slider position)
+                ctx.beginPath();
+                ctx.arc(sliderPos.x, sliderPos.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#f59e0b';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // Update all displays
+        function updateAll() {
+            updateJDisplay();
+            updateSliderDisplays();
+            updateDiagrams();
+            updateEnergyTable();
+            updateCurrentEnergy();
+            updateCalculationPanel();
+            drawEnergySurface(learningCanvas, learningCtx, Jij, null, true);
+            drawEnergySurface(runningCanvas, runningCtx, Jij, currentState, false);
+        }
+
+        // Pattern button click
+        patternBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const [pi, pj] = btn.dataset.pattern.split(',').map(Number);
+                const pattern = {pi, pj};
+
+                // Toggle selection
+                const existingIndex = storedPatterns.findIndex(p => p.pi === pi && p.pj === pj);
+                if (existingIndex >= 0) {
+                    storedPatterns.splice(existingIndex, 1);
+                    btn.classList.remove('selected');
+                } else {
+                    storedPatterns.push(pattern);
+                    btn.classList.add('selected');
+                }
+
+                updateAll();
+            });
+        });
+
+        // State button click
+        stateBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const [pi, pj] = btn.dataset.state.split(',').map(Number);
+                currentState = {pi, pj};
+
+                // Update button selection
+                stateBtns.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+
+                updateAll();
+            });
+        });
+
+        // Slider events
+        piSlider.addEventListener('input', (e) => {
+            sliderPi = parseFloat(e.target.value);
+            updateAll();
+        });
+
+        pjSlider.addEventListener('input', (e) => {
+            sliderPj = parseFloat(e.target.value);
+            updateAll();
+        });
+
+        // Initial state
+        stateBtns[0].classList.add('selected');
+
+        // Handle window resize
+        window.addEventListener('resize', updateAll);
+
+        // Initial render
+        updateAll();
+    </script>
+
+<footer class="site-footer" dir="ltr">
+  &copy; Developed by Shir Sivroni | All rights reserved
+</footer>
+</body>
+</html>
